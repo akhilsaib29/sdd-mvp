@@ -1,0 +1,1078 @@
+import { useState, useEffect } from "react";
+
+// ── SEED DATA ──────────────────────────────────────────────────────────────
+const SEED = {
+  users: [
+    { id: "U001", username: "admin", role: "Admin", dept: "Corporate", email: "admin@corp.com", phone: "9876543210", lastLogin: "2026-03-06 09:12" },
+    { id: "U002", username: "compliance01", role: "Compliance Officer", dept: "Legal", email: "compliance@corp.com", phone: "9876543211", lastLogin: "2026-03-06 08:45" },
+    { id: "U003", username: "rahul.mehta", role: "Designated Person", dept: "Finance", email: "r.mehta@corp.com", phone: "9876543212", lastLogin: "2026-03-05 17:30" },
+    { id: "U004", username: "auditor01", role: "Auditor", dept: "Audit", email: "audit@corp.com", phone: "9876543213", lastLogin: "2026-03-04 11:00" },
+  ],
+  upsi: [
+    { id: "UPSI001", title: "Q3 Financial Results", description: "Quarterly earnings report showing 18% YoY growth before public announcement.", category: "Financial Results", severity: "Critical", createdDate: "2026-03-01", authorizedBy: "U002", createdBy: "U002", source: "Finance", status: "Active", windowId: "TW001" },
+    { id: "UPSI002", title: "Merger with XYZ Corp", description: "Confidential M&A activity — acquisition of XYZ Corp for ₹2400 Cr pending board approval.", category: "Merger & Acquisition", severity: "Critical", createdDate: "2026-02-20", authorizedBy: "U002", createdBy: "U001", source: "Strategy", status: "Active", windowId: "TW002" },
+    { id: "UPSI003", title: "Dividend Declaration", description: "Board recommending 15% dividend for FY2025-26.", category: "Dividend Decision", severity: "High", createdDate: "2026-02-28", authorizedBy: "U002", createdBy: "U002", source: "Finance", status: "Active", windowId: "TW001" },
+    { id: "UPSI004", title: "New Product Launch", description: "Launch of flagship product line Q1 FY27 — pricing and strategy not yet public.", category: "Business Strategy", severity: "Medium", createdDate: "2026-01-15", authorizedBy: "U002", createdBy: "U003", source: "Marketing", status: "Archived", windowId: "" },
+  ],
+  designatedPersons: [
+    { id: "DP001", name: "Rahul Mehta", empId: "EMP001", position: "CFO", dept: "Finance", appointedDate: "2020-01-01", terminatedDate: "", status: "Active", reportsTo: "CEO", email: "r.mehta@corp.com", phone: "9876543212" },
+    { id: "DP002", name: "Priya Shah", empId: "EMP002", position: "Director", dept: "Board", appointedDate: "2018-06-15", terminatedDate: "", status: "Active", reportsTo: "Chairman", email: "p.shah@corp.com", phone: "9876543220" },
+    { id: "DP003", name: "Nikhil Iyer", empId: "EMP003", position: "VP Strategy", dept: "Strategy", appointedDate: "2021-03-01", terminatedDate: "", status: "Active", reportsTo: "CEO", email: "n.iyer@corp.com", phone: "9876543221" },
+    { id: "DP004", name: "Sunita Rao", empId: "EMP004", position: "Company Secretary", dept: "Legal", appointedDate: "2019-11-01", terminatedDate: "", status: "Suspended", reportsTo: "CFO", email: "s.rao@corp.com", phone: "9876543222" },
+  ],
+  connectedParties: [
+    { id: "CP001", name: "Anita Mehta", entityName: "", relationship: "Spouse", relatedTo: "DP001", address: "Mumbai", pan: "AXXPM1234A", phone: "9876540001", email: "anita.m@email.com", startDate: "2020-01-01", status: "Active", notes: "" },
+    { id: "CP002", name: "Rohan Mehta", entityName: "", relationship: "Child", relatedTo: "DP001", address: "Mumbai", pan: "BXXPM5678B", phone: "9876540002", email: "rohan.m@email.com", startDate: "2020-01-01", status: "Active", notes: "Minor — restricted" },
+    { id: "CP003", name: "Vijay Shah", entityName: "", relationship: "Spouse", relatedTo: "DP002", address: "Delhi", pan: "CXXPS9012C", phone: "9876540003", email: "v.shah@email.com", startDate: "2018-06-15", status: "Active", notes: "" },
+  ],
+  tradingWindows: [
+    { id: "TW001", name: "Q3 Results Blackout", openDate: "2026-03-15 09:00", closeDate: "2026-03-01 09:00", reason: "Results Declaration", status: "Closed", applicableTo: "All Employees", createdBy: "U002", upsiId: "UPSI001" },
+    { id: "TW002", name: "M&A Confidentiality Window", openDate: "2026-04-30 18:00", closeDate: "2026-02-20 09:00", reason: "Announcement Pending", status: "Closed", applicableTo: "Specific Persons", createdBy: "U002", upsiId: "UPSI002" },
+    { id: "TW003", name: "Board Meeting Window", openDate: "2026-03-20 18:00", closeDate: "2026-03-10 09:00", reason: "Board Meeting", status: "Upcoming", applicableTo: "All Employees", createdBy: "U002", upsiId: "" },
+  ],
+  tradingRequests: [
+    { id: "TR001", requestorId: "DP001", security: "RELIANCE", qty: 500, txnType: "Sell", requestedDate: "2026-03-05 10:30", proposedDate: "2026-03-10", status: "Pending", reason: "Personal liquidity requirement", review: "", approvalDate: "", approvalOfficer: "", conditions: "" },
+    { id: "TR002", requestorId: "DP003", security: "INFY", qty: 200, txnType: "Buy", requestedDate: "2026-03-04 14:00", proposedDate: "2026-03-08", status: "Approved", reason: "Long-term investment", review: "Approved — window open, no restrictions", approvalDate: "2026-03-04 16:00", approvalOfficer: "U002", conditions: "Must complete within 7 days" },
+    { id: "TR003", requestorId: "DP002", security: "TCS", qty: 1000, txnType: "Sell", requestedDate: "2026-03-03 09:00", proposedDate: "2026-03-07", status: "Rejected", reason: "Portfolio rebalancing", review: "Rejected — trading window closed for M&A UPSI", approvalDate: "2026-03-03 11:00", approvalOfficer: "U002", conditions: "" },
+  ],
+  restrictedSecurities: [
+    { id: "RS001", symbol: "CORP.NS", isin: "INE001A01036", name: "Corp Ltd", restrictionType: "Complete Ban", restrictedFor: "DP001", startDate: "2026-03-01", endDate: "2026-03-31", reason: "CFO holds UPSI on Q3 results", status: "Active", authorizedBy: "U002" },
+    { id: "RS002", symbol: "XYZCO.NS", isin: "INE002B02020", name: "XYZ Corp", restrictionType: "Complete Ban", restrictedFor: "All Designated", startDate: "2026-02-20", endDate: "2026-04-30", reason: "Active M&A negotiations", status: "Active", authorizedBy: "U002" },
+  ],
+  notifications: [
+    { id: "N001", recipientId: "U003", type: "Alert", subject: "Trading Window Closed", message: "Trading window TW001 has been closed due to Q3 Results UPSI. All trading is restricted.", relatedId: "TW001", createdDate: "2026-03-01 09:05", read: false, channel: "In-App", deliveryStatus: "Sent" },
+    { id: "N002", recipientId: "U002", type: "Approval", subject: "New Trading Request — TR001", message: "Rahul Mehta (CFO) has submitted a pre-clearance request to sell 500 units of RELIANCE.", relatedId: "TR001", createdDate: "2026-03-05 10:31", read: false, channel: "Email", deliveryStatus: "Sent" },
+    { id: "N003", recipientId: "U003", type: "Rejection", subject: "Pre-Clearance Request Rejected — TR003", message: "Your request TR003 for TCS has been rejected. Reason: Trading window closed for M&A UPSI.", relatedId: "TR003", createdDate: "2026-03-03 11:01", read: true, channel: "In-App", deliveryStatus: "Sent" },
+    { id: "N004", recipientId: "U001", type: "Compliance Notice", subject: "Upcoming Board Meeting — Window Closure", message: "Trading Window TW003 will close on 2026-03-10 due to scheduled Board Meeting.", relatedId: "TW003", createdDate: "2026-03-06 08:00", read: false, channel: "Email", deliveryStatus: "Sent" },
+  ],
+  auditLogs: [
+    { id: "AL001", userId: "U002", action: "Create", module: "UPSI Repository", recordId: "UPSI001", prevValue: "", newValue: "Q3 Financial Results created", timestamp: "2026-03-01 09:00:14", ip: "192.168.1.10", description: "New UPSI record created", status: "Success" },
+    { id: "AL002", userId: "U002", action: "Update", module: "Trading Window", recordId: "TW001", prevValue: "Open", newValue: "Closed", timestamp: "2026-03-01 09:01:02", ip: "192.168.1.10", description: "Trading window closed due to UPSI001", status: "Success" },
+    { id: "AL003", userId: "U003", action: "Create", module: "Trading Request", recordId: "TR001", prevValue: "", newValue: "TR001 submitted by DP001", timestamp: "2026-03-05 10:30:44", ip: "192.168.1.22", description: "Pre-clearance request submitted", status: "Success" },
+    { id: "AL004", userId: "U002", action: "Approve", module: "Trading Request", recordId: "TR002", prevValue: "Pending", newValue: "Approved", timestamp: "2026-03-04 16:00:12", ip: "192.168.1.10", description: "TR002 approved with conditions", status: "Success" },
+    { id: "AL005", userId: "U001", action: "Create", module: "Designated Persons", recordId: "DP004", prevValue: "", newValue: "Sunita Rao added", timestamp: "2026-02-15 11:30:00", ip: "192.168.1.5", description: "New designated person registered", status: "Success" },
+  ],
+};
+
+// ── STYLES ──────────────────────────────────────────────────────────────────
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Epilogue:wght@300;400;500;600;700;900&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0d1117;--surface:#161b22;--card:#1c2230;--border:#2a3244;
+    --text:#e6edf3;--muted:#7d8590;--dim:#4a5568;
+    --accent:#f78166;--accent2:#79c0ff;--accent3:#56d364;--accent4:#e3b341;
+    --red:#f85149;--green:#3fb950;--amber:#d29922;--blue:#58a6ff;
+  }
+  body{font-family:'Epilogue',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;overflow-x:hidden}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+  /* Layout */
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:50;overflow-y:auto}
+  .main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+  .topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:40}
+  .content{padding:24px;flex:1}
+
+  /* Sidebar */
+  .sb-brand{padding:16px 16px 8px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);margin-bottom:8px}
+  .sb-logo{width:30px;height:30px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .sb-title{font-weight:700;font-size:0.88rem;letter-spacing:0.04em}
+  .sb-subtitle{font-size:0.65rem;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+  .sb-section{padding:4px 10px;font-size:0.65rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;margin-top:8px}
+  .sb-item{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:6px;margin:1px 8px;cursor:pointer;transition:all 0.15s;font-size:0.82rem;color:var(--muted);border:1px solid transparent}
+  .sb-item:hover{background:var(--card);color:var(--text)}
+  .sb-item.active{background:rgba(247,129,102,0.1);color:var(--accent);border-color:rgba(247,129,102,0.2)}
+  .sb-icon{font-size:14px;width:18px;text-align:center}
+  .sb-badge{margin-left:auto;background:var(--red);color:white;font-size:0.6rem;padding:1px 6px;border-radius:10px;font-family:'IBM Plex Mono',monospace}
+
+  /* Topbar */
+  .tb-page{font-weight:600;font-size:0.9rem}
+  .tb-right{display:flex;align-items:center;gap:12px}
+  .tb-notif{position:relative;cursor:pointer;padding:6px;border-radius:6px}
+  .tb-notif:hover{background:var(--card)}
+  .tb-notif-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;background:var(--red);border-radius:50%;border:2px solid var(--surface)}
+  .tb-user{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--border)}
+  .tb-user:hover{background:var(--card)}
+  .tb-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:white}
+  .tb-username{font-size:0.8rem;font-weight:500}
+  .tb-role{font-size:0.68rem;color:var(--muted)}
+
+  /* Cards / KPIs */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+  .kpi-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px}
+  .kpi-label{font-size:0.72rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+  .kpi-val{font-size:1.9rem;font-weight:700;line-height:1;margin-bottom:4px}
+  .kpi-sub{font-size:0.72rem;color:var(--muted)}
+  .kpi-card.red{border-color:rgba(248,81,73,0.3);background:rgba(248,81,73,0.05)}
+  .kpi-card.green{border-color:rgba(63,185,80,0.3);background:rgba(63,185,80,0.05)}
+  .kpi-card.amber{border-color:rgba(210,153,34,0.3);background:rgba(210,153,34,0.05)}
+  .kpi-card.blue{border-color:rgba(88,166,255,0.3);background:rgba(88,166,255,0.05)}
+  .red .kpi-val{color:var(--red)}
+  .green .kpi-val{color:var(--green)}
+  .amber .kpi-val{color:var(--amber)}
+  .blue .kpi-val{color:var(--blue)}
+
+  /* Tables */
+  .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .table-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+  .table-title{font-weight:600;font-size:0.9rem}
+  table{width:100%;border-collapse:collapse}
+  th{background:rgba(255,255,255,0.03);padding:10px 16px;text-align:left;font-size:0.72rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+  td{padding:11px 16px;border-bottom:1px solid rgba(42,50,68,0.5);font-size:0.82rem;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,0.02)}
+  .mono{font-family:'IBM Plex Mono',monospace;font-size:0.75rem}
+
+  /* Badges */
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:0.68rem;font-family:'IBM Plex Mono',monospace;font-weight:500;white-space:nowrap}
+  .badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;opacity:0.8}
+  .badge.critical{background:rgba(248,81,73,0.15);color:#f85149}
+  .badge.high{background:rgba(210,153,34,0.15);color:#e3b341}
+  .badge.medium{background:rgba(88,166,255,0.15);color:#79c0ff}
+  .badge.low{background:rgba(63,185,80,0.15);color:#56d364}
+  .badge.active{background:rgba(63,185,80,0.15);color:#56d364}
+  .badge.inactive,.badge.archived,.badge.expired{background:rgba(125,133,144,0.15);color:#7d8590}
+  .badge.suspended{background:rgba(248,81,73,0.15);color:#f85149}
+  .badge.pending{background:rgba(210,153,34,0.15);color:#e3b341}
+  .badge.approved{background:rgba(63,185,80,0.15);color:#56d364}
+  .badge.rejected{background:rgba(248,81,73,0.15);color:#f85149}
+  .badge.open{background:rgba(63,185,80,0.15);color:#56d364}
+  .badge.closed{background:rgba(248,81,73,0.15);color:#f85149}
+  .badge.upcoming{background:rgba(88,166,255,0.15);color:#79c0ff}
+  .badge.withdrawn{background:rgba(125,133,144,0.15);color:#7d8590}
+  .badge.unread{background:rgba(247,129,102,0.15);color:#f78166}
+  .badge.read{background:rgba(125,133,144,0.15);color:#7d8590}
+  .badge.sent{background:rgba(63,185,80,0.15);color:#56d364}
+  .badge.success{background:rgba(63,185,80,0.15);color:#56d364}
+  .badge.failure{background:rgba(248,81,73,0.15);color:#f85149}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:6px;font-size:0.8rem;font-weight:500;font-family:'Epilogue',sans-serif;cursor:pointer;border:1px solid transparent;transition:all 0.15s}
+  .btn-primary{background:var(--accent);color:#0d1117;border-color:var(--accent)}
+  .btn-primary:hover{background:#ff9580;border-color:#ff9580}
+  .btn-secondary{background:transparent;color:var(--text);border-color:var(--border)}
+  .btn-secondary:hover{background:var(--card);border-color:var(--muted)}
+  .btn-ghost{background:transparent;color:var(--muted);border-color:transparent;padding:5px 10px}
+  .btn-ghost:hover{background:var(--card);color:var(--text)}
+  .btn-approve{background:rgba(63,185,80,0.15);color:#56d364;border-color:rgba(63,185,80,0.3)}
+  .btn-approve:hover{background:rgba(63,185,80,0.25)}
+  .btn-reject{background:rgba(248,81,73,0.1);color:#f85149;border-color:rgba(248,81,73,0.3)}
+  .btn-reject:hover{background:rgba(248,81,73,0.2)}
+  .btn-sm{padding:4px 10px;font-size:0.75rem}
+
+  /* Forms */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:14px;width:560px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.5)}
+  .modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1}
+  .modal-title{font-weight:700;font-size:1rem}
+  .modal-body{padding:24px}
+  .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .form-row.single{grid-template-columns:1fr}
+  .form-group{display:flex;flex-direction:column;gap:6px}
+  .form-label{font-size:0.75rem;color:var(--muted);font-weight:500;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.06em}
+  .form-input,.form-select,.form-textarea{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:9px 12px;color:var(--text);font-size:0.83rem;font-family:'Epilogue',sans-serif;width:100%;transition:border-color 0.15s}
+  .form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(247,129,102,0.1)}
+  .form-textarea{resize:vertical;min-height:80px}
+  option{background:var(--surface)}
+
+  /* Page header */
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+  .page-title{font-size:1.2rem;font-weight:700;margin-bottom:4px}
+  .page-sub{font-size:0.8rem;color:var(--muted)}
+
+  /* Detail Panel */
+  .detail-row{display:flex;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+  .detail-row:last-child{border-bottom:none}
+  .detail-key{font-size:0.72rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;width:160px;flex-shrink:0;padding-top:2px}
+  .detail-val{font-size:0.83rem;flex:1}
+
+  /* Dashboard charts (CSS bars) */
+  .chart-wrap{display:flex;align-items:flex-end;gap:6px;height:80px;padding-top:8px}
+  .chart-bar{flex:1;border-radius:3px 3px 0 0;min-height:4px;transition:height 0.3s}
+  .chart-labels{display:flex;gap:6px;margin-top:6px}
+  .chart-lbl{flex:1;font-size:0.6rem;color:var(--muted);text-align:center;font-family:'IBM Plex Mono',monospace}
+
+  /* Two-col layout */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+
+  /* Toast */
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--green);color:var(--green);padding:12px 20px;border-radius:8px;font-size:0.83rem;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:slideToast 0.3s ease}
+  .toast.error{border-color:var(--red);color:var(--red)}
+  @keyframes slideToast{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+  /* Empty state */
+  .empty{text-align:center;padding:48px 20px;color:var(--muted)}
+  .empty-icon{font-size:2.5rem;margin-bottom:12px}
+  .empty-text{font-size:0.88rem}
+
+  /* Quick info card */
+  .info-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px}
+  .info-card-title{font-weight:600;font-size:0.88rem;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+  /* Tag */
+  .tag{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:0.7rem;background:var(--surface);border:1px solid var(--border);font-family:'IBM Plex Mono',monospace;margin:2px}
+
+  /* Dot status */
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+  .dot.green{background:var(--green)}
+  .dot.red{background:var(--red)}
+  .dot.amber{background:var(--amber)}
+  .dot.blue{background:var(--blue)}
+`;
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const Badge = ({ value }) => {
+  if (!value) return null;
+  const cls = value.toLowerCase().replace(/\s+/g, "-");
+  return <span className={`badge ${cls}`}>{value}</span>;
+};
+
+const Modal = ({ title, onClose, onSubmit, children, submitLabel = "Save" }) => (
+  <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal">
+      <div className="modal-header">
+        <span className="modal-title">{title}</span>
+        <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+      </div>
+      <div className="modal-body">{children}</div>
+      <div className="modal-footer">
+        <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" onClick={onSubmit}>{submitLabel}</button>
+      </div>
+    </div>
+  </div>
+);
+
+const uid = (prefix) => prefix + Date.now().toString(36).toUpperCase();
+const now = () => new Date().toLocaleString("sv").replace("T", " ").slice(0, 16);
+
+// ── APP ──────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [page, setPage] = useState("dashboard");
+  const [data, setData] = useState(SEED);
+  const [toast, setToast] = useState(null);
+  const [currentUser] = useState(SEED.users[1]); // Compliance Officer
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const unreadCount = data.notifications.filter(n => !n.read && n.recipientId === currentUser.id).length;
+
+  const pages = {
+    dashboard: <Dashboard data={data} setPage={setPage} />,
+    upsi: <UPSIModule data={data} setData={setData} showToast={showToast} />,
+    "designated-persons": <DesignatedPersonsModule data={data} setData={setData} showToast={showToast} />,
+    "connected-parties": <ConnectedPartiesModule data={data} setData={setData} showToast={showToast} />,
+    "trading-window": <TradingWindowModule data={data} setData={setData} showToast={showToast} />,
+    "trading-requests": <TradingRequestsModule data={data} setData={setData} showToast={showToast} currentUser={currentUser} />,
+    "restricted-securities": <RestrictedSecuritiesModule data={data} setData={setData} showToast={showToast} />,
+    notifications: <NotificationsModule data={data} setData={setData} currentUser={currentUser} />,
+    "audit-log": <AuditLogModule data={data} />,
+    users: <UsersModule data={data} setData={setData} showToast={showToast} />,
+  };
+
+  const navItems = [
+    { id: "dashboard", icon: "⬡", label: "Dashboard" },
+    { section: "UPSI & TRADING" },
+    { id: "upsi", icon: "🗂", label: "UPSI Repository", badge: data.upsi.filter(u => u.status === "Active").length },
+    { id: "trading-window", icon: "📅", label: "Trading Windows" },
+    { id: "trading-requests", icon: "📋", label: "Pre-Clearance", badge: data.tradingRequests.filter(r => r.status === "Pending").length },
+    { id: "restricted-securities", icon: "🚫", label: "Restricted Securities" },
+    { section: "PARTIES" },
+    { id: "designated-persons", icon: "👤", label: "Designated Persons" },
+    { id: "connected-parties", icon: "🔗", label: "Connected Parties" },
+    { section: "COMPLIANCE" },
+    { id: "notifications", icon: "🔔", label: "Notifications", badge: unreadCount || undefined },
+    { id: "audit-log", icon: "📜", label: "Audit Log" },
+    { id: "users", icon: "🔐", label: "User Management" },
+  ];
+
+  return (
+    <>
+      <style>{css}</style>
+      <div className="app">
+        {/* SIDEBAR */}
+        <aside className="sidebar">
+          <div className="sb-brand">
+            <div className="sb-logo">🛡</div>
+            <div>
+              <div className="sb-title">UPSI Shield</div>
+              <div className="sb-subtitle">SDD v1.0</div>
+            </div>
+          </div>
+          {navItems.map((item, i) =>
+            item.section ? (
+              <div key={i} className="sb-section">{item.section}</div>
+            ) : (
+              <div key={item.id} className={`sb-item ${page === item.id ? "active" : ""}`} onClick={() => setPage(item.id)}>
+                <span className="sb-icon">{item.icon}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.badge ? <span className="sb-badge">{item.badge}</span> : null}
+              </div>
+            )
+          )}
+        </aside>
+
+        {/* MAIN */}
+        <div className="main">
+          <div className="topbar">
+            <span className="tb-page">{navItems.find(n => n.id === page)?.label || "Dashboard"}</span>
+            <div className="tb-right">
+              <div className="tb-notif" onClick={() => setPage("notifications")}>
+                🔔 {unreadCount > 0 && <span className="tb-notif-dot" />}
+              </div>
+              <div className="tb-user">
+                <div className="tb-avatar">{currentUser.username[0].toUpperCase()}</div>
+                <div>
+                  <div className="tb-username">{currentUser.username}</div>
+                  <div className="tb-role">{currentUser.role}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="content">{pages[page] || pages.dashboard}</div>
+        </div>
+      </div>
+      {toast && <div className={`toast ${toast.type}`}>✓ {toast.msg}</div>}
+    </>
+  );
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+function Dashboard({ data, setPage }) {
+  const activeUpsi = data.upsi.filter(u => u.status === "Active").length;
+  const pendingReqs = data.tradingRequests.filter(r => r.status === "Pending").length;
+  const closedWindows = data.tradingWindows.filter(w => w.status === "Closed").length;
+  const totalDP = data.designatedPersons.length;
+
+  const barData = [
+    { label: "Oct", val: 3 }, { label: "Nov", val: 7 }, { label: "Dec", val: 5 },
+    { label: "Jan", val: 9 }, { label: "Feb", val: 6 }, { label: "Mar", val: 4 },
+  ];
+  const maxBar = Math.max(...barData.map(b => b.val));
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <div className="page-title">Compliance Dashboard</div>
+          <div className="page-sub">Real-time overview — {new Date().toLocaleDateString("en-IN", { dateStyle: "long" })}</div>
+        </div>
+      </div>
+
+      <div className="kpi-grid">
+        <div className="kpi-card red" style={{ cursor: "pointer" }} onClick={() => setPage("upsi")}>
+          <div className="kpi-label">Active UPSI</div>
+          <div className="kpi-val">{activeUpsi}</div>
+          <div className="kpi-sub">{data.upsi.length} total records</div>
+        </div>
+        <div className="kpi-card amber" style={{ cursor: "pointer" }} onClick={() => setPage("trading-requests")}>
+          <div className="kpi-label">Pending Pre-Clearance</div>
+          <div className="kpi-val">{pendingReqs}</div>
+          <div className="kpi-sub">{data.tradingRequests.length} total requests</div>
+        </div>
+        <div className="kpi-card red">
+          <div className="kpi-label">Windows Closed</div>
+          <div className="kpi-val">{closedWindows}</div>
+          <div className="kpi-sub">{data.tradingWindows.length} windows total</div>
+        </div>
+        <div className="kpi-card blue">
+          <div className="kpi-label">Designated Persons</div>
+          <div className="kpi-val">{totalDP}</div>
+          <div className="kpi-sub">{data.connectedParties.length} connected parties</div>
+        </div>
+      </div>
+
+      <div className="two-col">
+        <div className="info-card">
+          <div className="info-card-title">📈 Trading Requests (6 months)</div>
+          <div className="chart-wrap">
+            {barData.map((b, i) => (
+              <div key={i} className="chart-bar" style={{ height: `${(b.val / maxBar) * 100}%`, background: i === 5 ? "var(--accent)" : "var(--border)" }} />
+            ))}
+          </div>
+          <div className="chart-labels">
+            {barData.map((b, i) => <div key={i} className="chart-lbl">{b.label}</div>)}
+          </div>
+        </div>
+
+        <div className="info-card">
+          <div className="info-card-title">🗂 Recent UPSI Events</div>
+          {data.upsi.slice(0, 4).map(u => (
+            <div key={u.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <div style={{ fontSize: "0.83rem", fontWeight: 500 }}>{u.title}</div>
+                <div style={{ fontSize: "0.72rem", color: "var(--muted)", fontFamily: "IBM Plex Mono" }}>{u.category}</div>
+              </div>
+              <Badge value={u.severity} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="two-col">
+        <div className="info-card">
+          <div className="info-card-title">📋 Pending Pre-Clearance Requests</div>
+          {data.tradingRequests.filter(r => r.status === "Pending").length === 0
+            ? <div style={{ color: "var(--muted)", fontSize: "0.83rem" }}>No pending requests</div>
+            : data.tradingRequests.filter(r => r.status === "Pending").map(r => {
+              const dp = data.designatedPersons.find(d => d.id === r.requestorId);
+              return (
+                <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+                  <div>
+                    <div style={{ fontSize: "0.83rem", fontWeight: 500 }}>{dp?.name} — {r.txnType} {r.qty} {r.security}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--muted)", fontFamily: "IBM Plex Mono" }}>{r.requestedDate}</div>
+                  </div>
+                  <Badge value={r.status} />
+                </div>
+              );
+            })}
+        </div>
+
+        <div className="info-card">
+          <div className="info-card-title">📅 Trading Window Status</div>
+          {data.tradingWindows.map(w => (
+            <div key={w.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <div style={{ fontSize: "0.83rem", fontWeight: 500 }}>{w.name}</div>
+                <div style={{ fontSize: "0.72rem", color: "var(--muted)", fontFamily: "IBM Plex Mono" }}>{w.reason}</div>
+              </div>
+              <Badge value={w.status} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="info-card">
+        <div className="info-card-title">📜 Recent Audit Events</div>
+        <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Module</th><th>Description</th><th>Status</th></tr></thead>
+          <tbody>
+            {data.auditLogs.slice(0, 5).map(log => {
+              const user = data.users.find(u => u.id === log.userId);
+              return (
+                <tr key={log.id}>
+                  <td className="mono">{log.timestamp}</td>
+                  <td>{user?.username}</td>
+                  <td><Badge value={log.action} /></td>
+                  <td style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{log.module}</td>
+                  <td style={{ color: "var(--muted)" }}>{log.description}</td>
+                  <td><Badge value={log.status} /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── UPSI MODULE ──────────────────────────────────────────────────────────────
+function UPSIModule({ data, setData, showToast }) {
+  const [showModal, setShowModal] = useState(false);
+  const [filter, setFilter] = useState("All");
+  const [form, setForm] = useState({ title: "", description: "", category: "Financial Results", severity: "High", source: "", status: "Active" });
+  const [detail, setDetail] = useState(null);
+
+  const categories = ["Financial Results", "Merger & Acquisition", "Dividend Decision", "Business Strategy", "Regulatory Changes", "Other"];
+  const severities = ["Critical", "High", "Medium", "Low"];
+  const statuses = ["All", "Active", "Archived"];
+
+  const filtered = filter === "All" ? data.upsi : data.upsi.filter(u => u.status === filter);
+
+  const submit = () => {
+    if (!form.title || !form.source) { showToast("Please fill all required fields", "error"); return; }
+    const newUpsi = { id: uid("UPSI"), ...form, createdDate: now().split(" ")[0], authorizedBy: "U002", createdBy: "U002", windowId: "" };
+    const newLog = { id: uid("AL"), userId: "U002", action: "Create", module: "UPSI Repository", recordId: newUpsi.id, prevValue: "", newValue: `${form.title} created`, timestamp: now(), ip: "192.168.1.10", description: "New UPSI record created", status: "Success" };
+    setData(d => ({ ...d, upsi: [newUpsi, ...d.upsi], auditLogs: [newLog, ...d.auditLogs] }));
+    showToast("UPSI record created successfully");
+    setShowModal(false);
+    setForm({ title: "", description: "", category: "Financial Results", severity: "High", source: "", status: "Active" });
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <div className="page-title">UPSI Repository</div>
+          <div className="page-sub">Centralized store of Unpublished Price Sensitive Information</div>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ New UPSI Record</button>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {statuses.map(s => <button key={s} className={`btn ${filter === s ? "btn-primary" : "btn-secondary"} btn-sm`} onClick={() => setFilter(s)}>{s}</button>)}
+      </div>
+
+      <div className="table-wrap">
+        <div className="table-header"><span className="table-title">UPSI Records ({filtered.length})</span></div>
+        <table><thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Severity</th><th>Source</th><th>Date</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {filtered.map(u => (
+              <tr key={u.id}>
+                <td className="mono">{u.id}</td>
+                <td style={{ fontWeight: 500 }}>{u.title}</td>
+                <td><span className="tag">{u.category}</span></td>
+                <td><Badge value={u.severity} /></td>
+                <td style={{ color: "var(--muted)" }}>{u.source}</td>
+                <td className="mono">{u.createdDate}</td>
+                <td><Badge value={u.status} /></td>
+                <td><button className="btn btn-ghost btn-sm" onClick={() => setDetail(u)}>View →</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {showModal && (
+        <Modal title="New UPSI Record" onClose={() => setShowModal(false)} onSubmit={submit} submitLabel="Create Record">
+          <div className="form-row single"><div className="form-group"><label className="form-label">Information Title *</label><input className="form-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Q4 Financial Results" /></div></div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Detailed description of the sensitive information..." /></div></div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Category *</label><select className="form-select" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{categories.map(c => <option key={c}>{c}</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Severity *</label><select className="form-select" value={form.severity} onChange={e => setForm({ ...form, severity: e.target.value })}>{severities.map(s => <option key={s}>{s}</option>)}</select></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Source / Department *</label><input className="form-input" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} placeholder="e.g. Finance" /></div>
+            <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Archived</option></select></div>
+          </div>
+        </Modal>
+      )}
+
+      {detail && (
+        <div className="modal-overlay" onClick={() => setDetail(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header"><span className="modal-title">{detail.id} — UPSI Detail</span><button className="btn btn-ghost btn-sm" onClick={() => setDetail(null)}>✕</button></div>
+            <div className="modal-body">
+              {[["ID", detail.id], ["Title", detail.title], ["Category", detail.category], ["Severity", <Badge value={detail.severity} />], ["Description", detail.description], ["Source", detail.source], ["Created Date", detail.createdDate], ["Status", <Badge value={detail.status} />], ["Authorized By", detail.authorizedBy], ["Related Window", detail.windowId || "—"]].map(([k, v]) => (
+                <div key={k} className="detail-row"><span className="detail-key">{k}</span><span className="detail-val">{v}</span></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DESIGNATED PERSONS ───────────────────────────────────────────────────────
+function DesignatedPersonsModule({ data, setData, showToast }) {
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name: "", empId: "", position: "", dept: "", appointedDate: "", reportsTo: "", email: "", phone: "", status: "Active" });
+
+  const submit = () => {
+    if (!form.name || !form.empId || !form.position) { showToast("Please fill required fields", "error"); return; }
+    const dp = { id: uid("DP"), ...form, terminatedDate: "" };
+    const log = { id: uid("AL"), userId: "U002", action: "Create", module: "Designated Persons", recordId: dp.id, prevValue: "", newValue: `${form.name} added`, timestamp: now(), ip: "192.168.1.10", description: "New designated person registered", status: "Success" };
+    setData(d => ({ ...d, designatedPersons: [...d.designatedPersons, dp], auditLogs: [log, ...d.auditLogs] }));
+    showToast("Designated Person added");
+    setShowModal(false);
+    setForm({ name: "", empId: "", position: "", dept: "", appointedDate: "", reportsTo: "", email: "", phone: "", status: "Active" });
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">Designated Persons</div><div className="page-sub">Registry of individuals subject to trading restrictions</div></div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Add Person</button>
+      </div>
+      <div className="table-wrap">
+        <table><thead><tr><th>ID</th><th>Name</th><th>Employee ID</th><th>Position</th><th>Department</th><th>Appointed</th><th>Reports To</th><th>Status</th></tr></thead>
+          <tbody>
+            {data.designatedPersons.map(d => (
+              <tr key={d.id}>
+                <td className="mono">{d.id}</td>
+                <td style={{ fontWeight: 500 }}>{d.name}</td>
+                <td className="mono">{d.empId}</td>
+                <td>{d.position}</td>
+                <td style={{ color: "var(--muted)" }}>{d.dept}</td>
+                <td className="mono">{d.appointedDate}</td>
+                <td style={{ color: "var(--muted)" }}>{d.reportsTo}</td>
+                <td><Badge value={d.status} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showModal && (
+        <Modal title="Add Designated Person" onClose={() => setShowModal(false)} onSubmit={submit}>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Full Name *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Employee ID *</label><input className="form-input" value={form.empId} onChange={e => setForm({ ...form, empId: e.target.value })} /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Position *</label><input className="form-input" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Department</label><input className="form-input" value={form.dept} onChange={e => setForm({ ...form, dept: e.target.value })} /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Appointed Date</label><input className="form-input" type="date" value={form.appointedDate} onChange={e => setForm({ ...form, appointedDate: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Reports To</label><input className="form-input" value={form.reportsTo} onChange={e => setForm({ ...form, reportsTo: e.target.value })} /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+          </div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Status</label><select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option><option>Suspended</option></select></div></div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── CONNECTED PARTIES ────────────────────────────────────────────────────────
+function ConnectedPartiesModule({ data, setData, showToast }) {
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name: "", relationship: "Spouse", relatedTo: "", address: "", pan: "", phone: "", email: "", startDate: "", status: "Active", notes: "" });
+
+  const submit = () => {
+    if (!form.name || !form.relatedTo) { showToast("Fill required fields", "error"); return; }
+    const cp = { id: uid("CP"), ...form, entityName: "" };
+    setData(d => ({ ...d, connectedParties: [...d.connectedParties, cp] }));
+    showToast("Connected Party added");
+    setShowModal(false);
+    setForm({ name: "", relationship: "Spouse", relatedTo: "", address: "", pan: "", phone: "", email: "", startDate: "", status: "Active", notes: "" });
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">Connected Parties</div><div className="page-sub">Extended network — spouses, relatives, business associates</div></div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Add Connected Party</button>
+      </div>
+      <div className="table-wrap">
+        <table><thead><tr><th>ID</th><th>Name</th><th>Relationship</th><th>Related To</th><th>PAN</th><th>Email</th><th>Since</th><th>Status</th></tr></thead>
+          <tbody>
+            {data.connectedParties.map(cp => {
+              const dp = data.designatedPersons.find(d => d.id === cp.relatedTo);
+              return (
+                <tr key={cp.id}>
+                  <td className="mono">{cp.id}</td>
+                  <td style={{ fontWeight: 500 }}>{cp.name}</td>
+                  <td><span className="tag">{cp.relationship}</span></td>
+                  <td>{dp?.name || cp.relatedTo}</td>
+                  <td className="mono">{cp.pan}</td>
+                  <td style={{ color: "var(--muted)" }}>{cp.email}</td>
+                  <td className="mono">{cp.startDate}</td>
+                  <td><Badge value={cp.status} /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {showModal && (
+        <Modal title="Add Connected Party" onClose={() => setShowModal(false)} onSubmit={submit}>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Full Name *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Relationship *</label><select className="form-select" value={form.relationship} onChange={e => setForm({ ...form, relationship: e.target.value })}>{["Spouse", "Parent", "Child", "Sibling", "Close Relative", "Business Associate"].map(r => <option key={r}>{r}</option>)}</select></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Related To (Designated Person) *</label><select className="form-select" value={form.relatedTo} onChange={e => setForm({ ...form, relatedTo: e.target.value })}><option value="">— Select —</option>{data.designatedPersons.map(dp => <option key={dp.id} value={dp.id}>{dp.name}</option>)}</select></div>
+            <div className="form-group"><label className="form-label">PAN / Tax ID</label><input className="form-input" value={form.pan} onChange={e => setForm({ ...form, pan: e.target.value })} placeholder="AXXXX1234X" /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Relationship Start Date</label><input className="form-input" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option></select></div>
+          </div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Notes</label><textarea className="form-textarea" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div></div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── TRADING WINDOW ────────────────────────────────────────────────────────────
+function TradingWindowModule({ data, setData, showToast }) {
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ name: "", openDate: "", closeDate: "", reason: "Results Declaration", status: "Upcoming", applicableTo: "All Employees", upsiId: "" });
+
+  const submit = () => {
+    if (!form.name || !form.openDate || !form.closeDate) { showToast("Fill required fields", "error"); return; }
+    const tw = { id: uid("TW"), ...form, createdBy: "U002" };
+    const log = { id: uid("AL"), userId: "U002", action: "Create", module: "Trading Window", recordId: tw.id, prevValue: "", newValue: `${form.name} created`, timestamp: now(), ip: "192.168.1.10", description: "Trading window created", status: "Success" };
+    setData(d => ({ ...d, tradingWindows: [...d.tradingWindows, tw], auditLogs: [log, ...d.auditLogs] }));
+    showToast("Trading window created");
+    setShowModal(false);
+    setForm({ name: "", openDate: "", closeDate: "", reason: "Results Declaration", status: "Upcoming", applicableTo: "All Employees", upsiId: "" });
+  };
+
+  const toggleStatus = (id) => {
+    setData(d => ({
+      ...d,
+      tradingWindows: d.tradingWindows.map(w => {
+        if (w.id !== id) return w;
+        const newStatus = w.status === "Open" ? "Closed" : w.status === "Closed" ? "Open" : "Open";
+        return { ...w, status: newStatus };
+      }),
+      auditLogs: [{ id: uid("AL"), userId: "U002", action: "Update", module: "Trading Window", recordId: id, prevValue: "", newValue: "Status toggled", timestamp: now(), ip: "192.168.1.10", description: "Window status changed", status: "Success" }, ...d.auditLogs]
+    }));
+    showToast("Window status updated");
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">Trading Window Calendar</div><div className="page-sub">Manage trading window open/close periods</div></div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Create Window</button>
+      </div>
+      <div className="table-wrap">
+        <table><thead><tr><th>ID</th><th>Name</th><th>Closes</th><th>Opens</th><th>Reason</th><th>Applicable To</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {data.tradingWindows.map(w => (
+              <tr key={w.id}>
+                <td className="mono">{w.id}</td>
+                <td style={{ fontWeight: 500 }}>{w.name}</td>
+                <td className="mono">{w.closeDate}</td>
+                <td className="mono">{w.openDate}</td>
+                <td><span className="tag">{w.reason}</span></td>
+                <td style={{ color: "var(--muted)" }}>{w.applicableTo}</td>
+                <td><Badge value={w.status} /></td>
+                <td>
+                  <button className={`btn btn-sm ${w.status === "Closed" ? "btn-approve" : "btn-reject"}`} onClick={() => toggleStatus(w.id)}>
+                    {w.status === "Closed" ? "Open" : "Close"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showModal && (
+        <Modal title="Create Trading Window" onClose={() => setShowModal(false)} onSubmit={submit}>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Window Name *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Q4 Results Blackout" /></div></div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Close Date *</label><input className="form-input" type="datetime-local" value={form.closeDate} onChange={e => setForm({ ...form, closeDate: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Open Date *</label><input className="form-input" type="datetime-local" value={form.openDate} onChange={e => setForm({ ...form, openDate: e.target.value })} /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Reason *</label><select className="form-select" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}>{["Results Declaration", "Announcement Pending", "Board Meeting", "M&A Activity", "Regulatory Event"].map(r => <option key={r}>{r}</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Upcoming</option><option>Open</option><option>Closed</option></select></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Applicable To</label><select className="form-select" value={form.applicableTo} onChange={e => setForm({ ...form, applicableTo: e.target.value })}><option>All Employees</option><option>Specific Departments</option><option>Specific Persons</option></select></div>
+            <div className="form-group"><label className="form-label">Related UPSI</label><select className="form-select" value={form.upsiId} onChange={e => setForm({ ...form, upsiId: e.target.value })}><option value="">— None —</option>{data.upsi.map(u => <option key={u.id} value={u.id}>{u.id} — {u.title}</option>)}</select></div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── TRADING REQUESTS ──────────────────────────────────────────────────────────
+function TradingRequestsModule({ data, setData, showToast, currentUser }) {
+  const [showModal, setShowModal] = useState(false);
+  const [reviewModal, setReviewModal] = useState(null);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [form, setForm] = useState({ requestorId: "", security: "", qty: "", txnType: "Buy", proposedDate: "", reason: "" });
+  const [filter, setFilter] = useState("All");
+
+  const filtered = filter === "All" ? data.tradingRequests : data.tradingRequests.filter(r => r.status === filter);
+
+  const submit = () => {
+    if (!form.requestorId || !form.security || !form.qty) { showToast("Fill required fields", "error"); return; }
+    const req = { id: uid("TR"), ...form, qty: parseInt(form.qty), requestedDate: now(), status: "Pending", review: "", approvalDate: "", approvalOfficer: "", conditions: "" };
+    const log = { id: uid("AL"), userId: currentUser.id, action: "Create", module: "Trading Request", recordId: req.id, prevValue: "", newValue: `${req.id} submitted`, timestamp: now(), ip: "192.168.1.22", description: "Pre-clearance request submitted", status: "Success" };
+    const notif = { id: uid("N"), recipientId: "U002", type: "Approval", subject: `New Trading Request — ${req.id}`, message: `Pre-clearance request submitted for ${req.qty} units of ${req.security}.`, relatedId: req.id, createdDate: now(), read: false, channel: "In-App", deliveryStatus: "Sent" };
+    setData(d => ({ ...d, tradingRequests: [req, ...d.tradingRequests], auditLogs: [log, ...d.auditLogs], notifications: [notif, ...d.notifications] }));
+    showToast("Trading request submitted");
+    setShowModal(false);
+    setForm({ requestorId: "", security: "", qty: "", txnType: "Buy", proposedDate: "", reason: "" });
+  };
+
+  const decide = (status) => {
+    if (!reviewModal) return;
+    const log = { id: uid("AL"), userId: "U002", action: status === "Approved" ? "Approve" : "Reject", module: "Trading Request", recordId: reviewModal.id, prevValue: "Pending", newValue: status, timestamp: now(), ip: "192.168.1.10", description: `Request ${status.toLowerCase()} by compliance officer`, status: "Success" };
+    const notif = { id: uid("N"), recipientId: "U003", type: status === "Approved" ? "Approval" : "Rejection", subject: `Pre-Clearance ${status} — ${reviewModal.id}`, message: `Your trading request ${reviewModal.id} has been ${status.toLowerCase()}.${reviewNotes ? " Note: " + reviewNotes : ""}`, relatedId: reviewModal.id, createdDate: now(), read: false, channel: "In-App", deliveryStatus: "Sent" };
+    setData(d => ({
+      ...d,
+      tradingRequests: d.tradingRequests.map(r => r.id === reviewModal.id ? { ...r, status, review: reviewNotes, approvalDate: now(), approvalOfficer: "U002" } : r),
+      auditLogs: [log, ...d.auditLogs],
+      notifications: [notif, ...d.notifications]
+    }));
+    showToast(`Request ${status.toLowerCase()}`);
+    setReviewModal(null);
+    setReviewNotes("");
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">Pre-Clearance Requests</div><div className="page-sub">Trading request workflow — submit, review, and approve</div></div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ New Request</button>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {["All", "Pending", "Approved", "Rejected"].map(s => <button key={s} className={`btn ${filter === s ? "btn-primary" : "btn-secondary"} btn-sm`} onClick={() => setFilter(s)}>{s}</button>)}
+      </div>
+
+      <div className="table-wrap">
+        <table><thead><tr><th>ID</th><th>Requestor</th><th>Security</th><th>Qty</th><th>Type</th><th>Proposed Date</th><th>Requested</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {filtered.map(r => {
+              const dp = data.designatedPersons.find(d => d.id === r.requestorId);
+              return (
+                <tr key={r.id}>
+                  <td className="mono">{r.id}</td>
+                  <td style={{ fontWeight: 500 }}>{dp?.name || r.requestorId}</td>
+                  <td><strong>{r.security}</strong></td>
+                  <td className="mono">{r.qty.toLocaleString()}</td>
+                  <td><span className="tag">{r.txnType}</span></td>
+                  <td className="mono">{r.proposedDate}</td>
+                  <td className="mono" style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{r.requestedDate}</td>
+                  <td><Badge value={r.status} /></td>
+                  <td>
+                    {r.status === "Pending" ? (
+                      <button className="btn btn-ghost btn-sm" onClick={() => setReviewModal(r)}>Review →</button>
+                    ) : (
+                      <span style={{ fontSize: "0.72rem", color: "var(--muted)", fontFamily: "IBM Plex Mono" }}>{r.approvalDate?.split(" ")[0]}</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {showModal && (
+        <Modal title="Submit Pre-Clearance Request" onClose={() => setShowModal(false)} onSubmit={submit} submitLabel="Submit Request">
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Designated Person *</label><select className="form-select" value={form.requestorId} onChange={e => setForm({ ...form, requestorId: e.target.value })}><option value="">— Select —</option>{data.designatedPersons.map(dp => <option key={dp.id} value={dp.id}>{dp.name} ({dp.position})</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Security Symbol *</label><input className="form-input" value={form.security} onChange={e => setForm({ ...form, security: e.target.value.toUpperCase() })} placeholder="e.g. RELIANCE" /></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Quantity *</label><input className="form-input" type="number" value={form.qty} onChange={e => setForm({ ...form, qty: e.target.value })} placeholder="500" /></div>
+            <div className="form-group"><label className="form-label">Transaction Type *</label><select className="form-select" value={form.txnType} onChange={e => setForm({ ...form, txnType: e.target.value })}><option>Buy</option><option>Sell</option><option>Exercise</option><option>Other</option></select></div>
+          </div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Proposed Trade Date</label><input className="form-input" type="date" value={form.proposedDate} onChange={e => setForm({ ...form, proposedDate: e.target.value })} /></div></div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Reason for Request</label><textarea className="form-textarea" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} placeholder="Explain the purpose of this trade..." /></div></div>
+        </Modal>
+      )}
+
+      {reviewModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header"><span className="modal-title">Review Request — {reviewModal.id}</span><button className="btn btn-ghost btn-sm" onClick={() => setReviewModal(null)}>✕</button></div>
+            <div className="modal-body">
+              {[["Requestor", data.designatedPersons.find(d => d.id === reviewModal.requestorId)?.name], ["Security", reviewModal.security], ["Quantity", reviewModal.qty], ["Transaction", reviewModal.txnType], ["Proposed Date", reviewModal.proposedDate], ["Reason", reviewModal.reason]].map(([k, v]) => (
+                <div key={k} className="detail-row"><span className="detail-key">{k}</span><span className="detail-val">{v}</span></div>
+              ))}
+              <div style={{ marginTop: 16 }}>
+                <label className="form-label" style={{ marginBottom: 6, display: "block" }}>Compliance Officer Notes</label>
+                <textarea className="form-textarea" value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} placeholder="Add review notes or conditions..." />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setReviewModal(null)}>Cancel</button>
+              <button className="btn btn-reject" onClick={() => decide("Rejected")}>✕ Reject</button>
+              <button className="btn btn-approve" onClick={() => decide("Approved")}>✓ Approve</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── RESTRICTED SECURITIES ─────────────────────────────────────────────────────
+function RestrictedSecuritiesModule({ data, setData, showToast }) {
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ symbol: "", isin: "", name: "", restrictionType: "Complete Ban", restrictedFor: "All Designated", startDate: "", endDate: "", reason: "", status: "Active" });
+
+  const submit = () => {
+    if (!form.symbol || !form.name) { showToast("Fill required fields", "error"); return; }
+    const rs = { id: uid("RS"), ...form, authorizedBy: "U002" };
+    setData(d => ({ ...d, restrictedSecurities: [...d.restrictedSecurities, rs] }));
+    showToast("Security restriction added");
+    setShowModal(false);
+    setForm({ symbol: "", isin: "", name: "", restrictionType: "Complete Ban", restrictedFor: "All Designated", startDate: "", endDate: "", reason: "", status: "Active" });
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">Restricted Securities</div><div className="page-sub">Securities with trading restrictions for specific individuals or groups</div></div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Add Restriction</button>
+      </div>
+      <div className="table-wrap">
+        <table><thead><tr><th>ID</th><th>Symbol</th><th>Security Name</th><th>ISIN</th><th>Restriction Type</th><th>Restricted For</th><th>Start</th><th>End</th><th>Reason</th><th>Status</th></tr></thead>
+          <tbody>
+            {data.restrictedSecurities.map(rs => (
+              <tr key={rs.id}>
+                <td className="mono">{rs.id}</td>
+                <td><strong style={{ color: "var(--accent2)" }}>{rs.symbol}</strong></td>
+                <td style={{ fontWeight: 500 }}>{rs.name}</td>
+                <td className="mono" style={{ fontSize: "0.72rem" }}>{rs.isin}</td>
+                <td><span className="tag">{rs.restrictionType}</span></td>
+                <td style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{rs.restrictedFor}</td>
+                <td className="mono">{rs.startDate}</td>
+                <td className="mono">{rs.endDate}</td>
+                <td style={{ color: "var(--muted)", fontSize: "0.78rem", maxWidth: 200 }}>{rs.reason}</td>
+                <td><Badge value={rs.status} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showModal && (
+        <Modal title="Add Security Restriction" onClose={() => setShowModal(false)} onSubmit={submit}>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Symbol *</label><input className="form-input" value={form.symbol} onChange={e => setForm({ ...form, symbol: e.target.value.toUpperCase() })} placeholder="RELIANCE.NS" /></div>
+            <div className="form-group"><label className="form-label">ISIN</label><input className="form-input" value={form.isin} onChange={e => setForm({ ...form, isin: e.target.value })} placeholder="INE001A01036" /></div>
+          </div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Security Name *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div></div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Restriction Type</label><select className="form-select" value={form.restrictionType} onChange={e => setForm({ ...form, restrictionType: e.target.value })}>{["Complete Ban", "Quantity Limit", "Period Restriction"].map(r => <option key={r}>{r}</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Restricted For</label><select className="form-select" value={form.restrictedFor} onChange={e => setForm({ ...form, restrictedFor: e.target.value })}><option>All Designated</option>{data.designatedPersons.map(dp => <option key={dp.id} value={dp.id}>{dp.name}</option>)}</select></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Start Date</label><input className="form-input" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">End Date</label><input className="form-input" type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} /></div>
+          </div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Reason</label><textarea className="form-textarea" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></div></div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function NotificationsModule({ data, setData, currentUser }) {
+  const markRead = (id) => {
+    setData(d => ({ ...d, notifications: d.notifications.map(n => n.id === id ? { ...n, read: true } : n) }));
+  };
+  const markAllRead = () => {
+    setData(d => ({ ...d, notifications: d.notifications.map(n => n.recipientId === currentUser.id ? { ...n, read: true } : n) }));
+  };
+
+  const myNotifs = data.notifications.filter(n => n.recipientId === currentUser.id || true); // show all for demo
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">Notifications</div><div className="page-sub">{myNotifs.filter(n => !n.read).length} unread messages</div></div>
+        <button className="btn btn-secondary" onClick={markAllRead}>Mark all as read</button>
+      </div>
+      <div className="table-wrap">
+        <table><thead><tr><th>ID</th><th>Type</th><th>Subject</th><th>Message</th><th>Channel</th><th>Date</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {myNotifs.map(n => (
+              <tr key={n.id} style={{ opacity: n.read ? 0.6 : 1 }}>
+                <td className="mono">{n.id}</td>
+                <td><Badge value={n.type} /></td>
+                <td style={{ fontWeight: n.read ? 400 : 600 }}>{n.subject}</td>
+                <td style={{ color: "var(--muted)", fontSize: "0.78rem", maxWidth: 280 }}>{n.message}</td>
+                <td><span className="tag">{n.channel}</span></td>
+                <td className="mono" style={{ fontSize: "0.72rem" }}>{n.createdDate}</td>
+                <td><Badge value={n.read ? "Read" : "Unread"} /></td>
+                <td>{!n.read && <button className="btn btn-ghost btn-sm" onClick={() => markRead(n.id)}>Mark read</button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
+function AuditLogModule({ data }) {
+  const [filter, setFilter] = useState("");
+  const logs = filter ? data.auditLogs.filter(l => l.module.toLowerCase().includes(filter.toLowerCase()) || l.action.toLowerCase().includes(filter.toLowerCase())) : data.auditLogs;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">Audit Log</div><div className="page-sub">Immutable record of all system activities — {data.auditLogs.length} events logged</div></div>
+        <input className="form-input" style={{ width: 240 }} placeholder="Filter by module or action..." value={filter} onChange={e => setFilter(e.target.value)} />
+      </div>
+      <div className="table-wrap">
+        <table><thead><tr><th>Log ID</th><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Record</th><th>Description</th><th>IP Address</th><th>Status</th></tr></thead>
+          <tbody>
+            {logs.map(log => {
+              const user = data.users.find(u => u.id === log.userId);
+              return (
+                <tr key={log.id}>
+                  <td className="mono">{log.id}</td>
+                  <td className="mono" style={{ fontSize: "0.72rem", whiteSpace: "nowrap" }}>{log.timestamp}</td>
+                  <td style={{ fontWeight: 500 }}>{user?.username || log.userId}</td>
+                  <td><Badge value={log.action} /></td>
+                  <td><span className="tag">{log.module}</span></td>
+                  <td className="mono" style={{ fontSize: "0.72rem" }}>{log.recordId}</td>
+                  <td style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{log.description}</td>
+                  <td className="mono" style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{log.ip}</td>
+                  <td><Badge value={log.status} /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+function UsersModule({ data, setData, showToast }) {
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ username: "", role: "Designated Person", dept: "", email: "", phone: "" });
+
+  const submit = () => {
+    if (!form.username || !form.email) { showToast("Fill required fields", "error"); return; }
+    const user = { id: uid("U"), ...form, lastLogin: "—" };
+    setData(d => ({ ...d, users: [...d.users, user] }));
+    showToast("User created successfully");
+    setShowModal(false);
+    setForm({ username: "", role: "Designated Person", dept: "", email: "", phone: "" });
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><div className="page-title">User Management</div><div className="page-sub">Manage system access, roles, and credentials</div></div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Add User</button>
+      </div>
+      <div className="table-wrap">
+        <table><thead><tr><th>User ID</th><th>Username</th><th>Role</th><th>Department</th><th>Email</th><th>Phone</th><th>Last Login</th></tr></thead>
+          <tbody>
+            {data.users.map(u => (
+              <tr key={u.id}>
+                <td className="mono">{u.id}</td>
+                <td style={{ fontWeight: 500 }}>{u.username}</td>
+                <td><span className="tag">{u.role}</span></td>
+                <td style={{ color: "var(--muted)" }}>{u.dept}</td>
+                <td style={{ color: "var(--muted)" }}>{u.email}</td>
+                <td className="mono">{u.phone}</td>
+                <td className="mono" style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{u.lastLogin}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showModal && (
+        <Modal title="Create New User" onClose={() => setShowModal(false)} onSubmit={submit}>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Username *</label><input className="form-input" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Role *</label><select className="form-select" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>{["Admin", "Compliance Officer", "Designated Person", "Auditor"].map(r => <option key={r}>{r}</option>)}</select></div>
+          </div>
+          <div className="form-row single"><div className="form-group"><label className="form-label">Email *</label><input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div></div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Department</label><input className="form-input" value={form.dept} onChange={e => setForm({ ...form, dept: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
