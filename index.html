@@ -405,7 +405,7 @@ const SEED = {
     closeDate: "2026-03-01 09:00",
     reason: "Results Declaration",
     status: "Closed",
-    applicableTo: "All Employees",
+    memberIds: ["DP001", "DP002"],
     createdBy: "U002",
     upsiId: "UPSI001"
   }, {
@@ -415,7 +415,7 @@ const SEED = {
     closeDate: "2026-02-20 09:00",
     reason: "Announcement Pending",
     status: "Closed",
-    applicableTo: "Specific Persons",
+    memberIds: ["DP001", "DP003", "CP001"],
     createdBy: "U002",
     upsiId: "UPSI002"
   }, {
@@ -425,7 +425,7 @@ const SEED = {
     closeDate: "2026-03-10 09:00",
     reason: "Board Meeting",
     status: "Upcoming",
-    applicableTo: "All Employees",
+    memberIds: ["DP002", "DP004"],
     createdBy: "U002",
     upsiId: ""
   }],
@@ -2871,14 +2871,26 @@ function TradingWindow({
     closeDate: "",
     reason: "Results Declaration",
     status: "Upcoming",
-    applicableTo: "All Employees",
+    memberIds: [],
     upsiId: ""
   };
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(blank);
+  const [detail, setDetail] = useState(null);
+  const getMemberLabels = (ids = []) => ids.map(id => {
+    const dp = data.designatedPersons.find(d => d.id === id);
+    if (dp) return dp.name;
+    const cp = data.connectedParties.find(c => c.id === id);
+    if (cp) return cp.name;
+    return id;
+  });
   const submit = () => {
     if (!form.name || !form.openDate || !form.closeDate) {
       showToast("Fill required fields", "error");
+      return;
+    }
+    if (form.memberIds.length === 0) {
+      showToast("Select at least one member", "error");
       return;
     }
     const tw = {
@@ -2951,7 +2963,7 @@ function TradingWindow({
     onClick: () => setShowAdd(true)
   }, "+ Create Window")), /*#__PURE__*/React.createElement("div", {
     className: "table-wrap"
-  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "ID"), /*#__PURE__*/React.createElement("th", null, "Name"), /*#__PURE__*/React.createElement("th", null, "Close Date"), /*#__PURE__*/React.createElement("th", null, "Open Date"), /*#__PURE__*/React.createElement("th", null, "Reason"), /*#__PURE__*/React.createElement("th", null, "Applicable To"), /*#__PURE__*/React.createElement("th", null, "Related UPSI"), /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Action"))), /*#__PURE__*/React.createElement("tbody", null, data.tradingWindows.map(w => /*#__PURE__*/React.createElement("tr", {
+  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "ID"), /*#__PURE__*/React.createElement("th", null, "Name"), /*#__PURE__*/React.createElement("th", null, "Close Date"), /*#__PURE__*/React.createElement("th", null, "Open Date"), /*#__PURE__*/React.createElement("th", null, "Reason"), /*#__PURE__*/React.createElement("th", null, "Members"), /*#__PURE__*/React.createElement("th", null, "Related UPSI"), /*#__PURE__*/React.createElement("th", null, "Status"), /*#__PURE__*/React.createElement("th", null, "Action"))), /*#__PURE__*/React.createElement("tbody", null, data.tradingWindows.map(w => /*#__PURE__*/React.createElement("tr", {
     key: w.id
   }, /*#__PURE__*/React.createElement("td", {
     className: "mono"
@@ -2967,13 +2979,46 @@ function TradingWindow({
     className: "tag"
   }, w.reason)), /*#__PURE__*/React.createElement("td", {
     style: {
-      color: "var(--muted)"
+      maxWidth: 180
     }
-  }, w.applicableTo), /*#__PURE__*/React.createElement("td", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 4
+    }
+  }, getMemberLabels(w.memberIds || []).slice(0, 2).map((name, i) => /*#__PURE__*/React.createElement("span", {
+    key: i,
+    className: "tag",
+    style: {
+      fontSize: "0.65rem"
+    }
+  }, name)), (w.memberIds || []).length > 2 && /*#__PURE__*/React.createElement("span", {
+    className: "tag",
+    style: {
+      fontSize: "0.65rem",
+      color: "var(--muted)",
+      cursor: "pointer"
+    },
+    onClick: () => setDetail(w)
+  }, "+", w.memberIds.length - 2, " more"), (w.memberIds || []).length === 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "var(--muted)",
+      fontSize: "0.75rem"
+    }
+  }, "\u2014"))), /*#__PURE__*/React.createElement("td", {
     className: "mono"
   }, w.upsiId || "—"), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement(Badge, {
     value: w.status
-  })), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
+  })), /*#__PURE__*/React.createElement("td", {
+    style: {
+      display: "flex",
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: () => setDetail(w)
+  }, "View"), portal !== "rating" && /*#__PURE__*/React.createElement("button", {
     className: `btn btn-sm ${w.status === "Closed" ? "btn-open" : "btn-close-win"}`,
     onClick: () => toggle(w.id)
   }, w.status === "Closed" ? "Open" : "Close"))))))), showAdd && /*#__PURE__*/React.createElement(Modal, {
@@ -2982,7 +3027,8 @@ function TradingWindow({
       setShowAdd(false);
       setForm(blank);
     },
-    onSubmit: submit
+    onSubmit: submit,
+    wide: true
   }, /*#__PURE__*/React.createElement("div", {
     className: "form-row single"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3050,19 +3096,8 @@ function TradingWindow({
       status: e.target.value
     })
   }, /*#__PURE__*/React.createElement("option", null, "Upcoming"), /*#__PURE__*/React.createElement("option", null, "Open"), /*#__PURE__*/React.createElement("option", null, "Closed")))), /*#__PURE__*/React.createElement("div", {
-    className: "form-row"
+    className: "form-row single"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "form-group"
-  }, /*#__PURE__*/React.createElement("label", {
-    className: "form-label"
-  }, "Applicable To"), /*#__PURE__*/React.createElement("select", {
-    className: "form-select",
-    value: form.applicableTo,
-    onChange: e => setForm({
-      ...form,
-      applicableTo: e.target.value
-    })
-  }, /*#__PURE__*/React.createElement("option", null, "All Employees"), /*#__PURE__*/React.createElement("option", null, "Specific Departments"), /*#__PURE__*/React.createElement("option", null, "Specific Persons"))), /*#__PURE__*/React.createElement("div", {
     className: "form-group"
   }, /*#__PURE__*/React.createElement("label", {
     className: "form-label"
@@ -3078,7 +3113,71 @@ function TradingWindow({
   }, "\u2014 None \u2014"), data.upsi.map(u => /*#__PURE__*/React.createElement("option", {
     key: u.id,
     value: u.id
-  }, u.id, " \u2014 ", u.title)))))));
+  }, u.id, " \u2014 ", u.title))))), /*#__PURE__*/React.createElement("div", {
+    className: "modal-section"
+  }, "Applicable Members *"), /*#__PURE__*/React.createElement("div", {
+    className: "form-group"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "form-label"
+  }, "Select Designated Persons & Connected Parties"), /*#__PURE__*/React.createElement(ReceiverMultiSelect, {
+    designatedPersons: data.designatedPersons,
+    connectedParties: data.connectedParties,
+    selected: form.memberIds,
+    onChange: ids => setForm({
+      ...form,
+      memberIds: ids
+    })
+  }), form.memberIds.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "0.72rem",
+      color: "var(--red)",
+      marginTop: 4
+    }
+  }, "At least one member is required"))), detail && /*#__PURE__*/React.createElement(Modal, {
+    title: `${detail.id} — Window Detail`,
+    onClose: () => setDetail(null),
+    onSubmit: null,
+    wide: true
+  }, /*#__PURE__*/React.createElement(FRow, {
+    k: "Window ID",
+    v: detail.id
+  }), /*#__PURE__*/React.createElement(FRow, {
+    k: "Name",
+    v: detail.name
+  }), /*#__PURE__*/React.createElement(FRow, {
+    k: "Reason",
+    v: detail.reason
+  }), /*#__PURE__*/React.createElement(FRow, {
+    k: "Close Date",
+    v: detail.closeDate
+  }), /*#__PURE__*/React.createElement(FRow, {
+    k: "Open Date",
+    v: detail.openDate
+  }), /*#__PURE__*/React.createElement(FRow, {
+    k: "Status",
+    v: /*#__PURE__*/React.createElement(Badge, {
+      value: detail.status
+    })
+  }), /*#__PURE__*/React.createElement(FRow, {
+    k: "Related UPSI",
+    v: detail.upsiId || "—"
+  }), /*#__PURE__*/React.createElement(FRow, {
+    k: "Members",
+    v: /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 4
+      }
+    }, getMemberLabels(detail.memberIds || []).map((name, i) => /*#__PURE__*/React.createElement("span", {
+      key: i,
+      className: "tag"
+    }, name)), (detail.memberIds || []).length === 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "var(--muted)"
+      }
+    }, "\u2014"))
+  })));
 }
 
 // ── TRADING REQUESTS ──────────────────────────────────────────────────────────
